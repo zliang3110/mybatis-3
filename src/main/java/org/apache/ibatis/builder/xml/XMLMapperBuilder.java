@@ -91,7 +91,9 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   public void parse() {
+    //判断是否已经解析过
     if (!configuration.isResourceLoaded(resource)) {
+      //解析<mapper>节点
       configurationElement(parser.evalNode("/mapper"));
       configuration.addLoadedResource(resource);
       bindMapperForNamespace();
@@ -108,15 +110,22 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void configurationElement(XNode context) {
     try {
+      //获取namespaces属性
       String namespace = context.getStringAttribute("namespace");
+      //namespace不允许为空
       if (namespace == null || namespace.isEmpty()) {
         throw new BuilderException("Mapper's namespace cannot be empty");
       }
       builderAssistant.setCurrentNamespace(namespace);
+      //解析cache-ref
       cacheRefElement(context.evalNode("cache-ref"));
+      //解析cache
       cacheElement(context.evalNode("cache"));
+      //解析parameterMap
       parameterMapElement(context.evalNodes("/mapper/parameterMap"));
+      //解析resultMap
       resultMapElements(context.evalNodes("/mapper/resultMap"));
+      //解析sql
       sqlElement(context.evalNodes("/mapper/sql"));
       buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
     } catch (Exception e) {
@@ -241,7 +250,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void resultMapElements(List<XNode> list) {
-    for (XNode resultMapNode : list) {
+    for (XNode resultMapNode : list) { //resultMap可有多个
       try {
         resultMapElement(resultMapNode);
       } catch (IncompleteElementException e) {
@@ -256,24 +265,32 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private ResultMap resultMapElement(XNode resultMapNode, List<ResultMapping> additionalResultMappings, Class<?> enclosingType) {
     ErrorContext.instance().activity("processing " + resultMapNode.getValueBasedIdentifier());
+
+    //获取type属性，获取顺序为type -> ofType -> resultType -> javaType
     String type = resultMapNode.getStringAttribute("type",
         resultMapNode.getStringAttribute("ofType",
             resultMapNode.getStringAttribute("resultType",
                 resultMapNode.getStringAttribute("javaType"))));
+    //获取type对应的class
     Class<?> typeClass = resolveClass(type);
     if (typeClass == null) {
       typeClass = inheritEnclosingType(resultMapNode, enclosingType);
     }
+
     Discriminator discriminator = null;
     List<ResultMapping> resultMappings = new ArrayList<>(additionalResultMappings);
     List<XNode> resultChildren = resultMapNode.getChildren();
+    //解析resultMap子节点
     for (XNode resultChild : resultChildren) {
+      //constructor解析
       if ("constructor".equals(resultChild.getName())) {
         processConstructorElement(resultChild, typeClass, resultMappings);
+        //discriminator解析
       } else if ("discriminator".equals(resultChild.getName())) {
         discriminator = processDiscriminatorElement(resultChild, typeClass, resultMappings);
-      } else {
+      } else { //id result collection association解析
         List<ResultFlag> flags = new ArrayList<>();
+        //<id property="id" column="post_id"/>
         if ("id".equals(resultChild.getName())) {
           flags.add(ResultFlag.ID);
         }

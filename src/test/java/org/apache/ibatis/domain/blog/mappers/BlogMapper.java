@@ -18,10 +18,12 @@ package org.apache.ibatis.domain.blog.mappers;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.session.RowBounds;
 
 public interface BlogMapper {
 
+  @Select("select * from user")
   List<Map> selectAllPosts();
 
   List<Map> selectAllPosts(RowBounds rowBounds);

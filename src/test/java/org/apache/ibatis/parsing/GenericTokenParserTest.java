@@ -112,4 +112,9 @@ class GenericTokenParserTest {
     });
   }
 
+  public static void main(String[] args) {
+    GenericTokenParserTest test = new GenericTokenParserTest();
+    test.shouldDemonstrateGenericTokenReplacement();
+  }
+
 }

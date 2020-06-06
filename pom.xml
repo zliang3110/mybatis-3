@@ -269,6 +269,12 @@
       <artifactId>junit-jupiter</artifactId>
       <version>1.14.2</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
@@ -283,7 +289,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
   <build>
     <plugins>
       <plugin>
