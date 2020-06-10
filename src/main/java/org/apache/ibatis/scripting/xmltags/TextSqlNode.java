@@ -47,12 +47,16 @@ public class TextSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // 创建 ${} 占位符解析器
     GenericTokenParser parser = createParser(new BindingTokenParser(context, injectionFilter));
+    // 创建 ${} 占位符解析器
     context.appendSql(parser.parse(text));
     return true;
   }
 
   private GenericTokenParser createParser(TokenHandler handler) {
+    // 创建占位符解析器，GenericTokenParser 是一个通用解析器，
+    // 并非只能解析 ${} 占位符
     return new GenericTokenParser("${", "}", handler);
   }
 
@@ -74,8 +78,10 @@ public class TextSqlNode implements SqlNode {
       } else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
         context.getBindings().put("value", parameter);
       }
+      // 通过 ONGL 从用户传入的参数中获取结果
       Object value = OgnlCache.getValue(content, context.getBindings());
       String srtValue = value == null ? "" : String.valueOf(value); // issue #274 return "" instead of "null"
+      // 通过正则表达式检测 srtValue 有效性
       checkInjection(srtValue);
       return srtValue;
     }

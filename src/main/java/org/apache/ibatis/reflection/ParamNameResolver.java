@@ -55,36 +55,62 @@ public class ParamNameResolver {
   private boolean hasParamAnnotation;
 
   public ParamNameResolver(Configuration config, Method method) {
+    /*
+    当你在处理一个带有多个形参的构造方法时，很容易搞乱 arg 元素的顺序。
+    从版本 3.4.3 开始，可以在指定参数名称的前提下，以任意顺序编写 arg 元素。
+    为了通过名称来引用构造方法参数，你可以添加 @Param 注解，
+    或者使用 '-parameters' 编译选项并启用 useActualParamName 选项（默认开启）来编译项目
+     */
     this.useActualParamName = config.isUseActualParamName();
+    // 获取参数类型列表
     final Class<?>[] paramTypes = method.getParameterTypes();
+    // 获取参数注解
     final Annotation[][] paramAnnotations = method.getParameterAnnotations();
     final SortedMap<Integer, String> map = new TreeMap<>();
     int paramCount = paramAnnotations.length;
     // get names from @Param annotations
     for (int paramIndex = 0; paramIndex < paramCount; paramIndex++) {
+      // 检测当前的参数类型是否为 RowBounds 或 ResultHandler
       if (isSpecialParameter(paramTypes[paramIndex])) {
         // skip special parameters
+        //跳过
         continue;
       }
       String name = null;
       for (Annotation annotation : paramAnnotations[paramIndex]) {
         if (annotation instanceof Param) {
           hasParamAnnotation = true;
+          // 获取 @Param 注解内容
           name = ((Param) annotation).value();
           break;
         }
       }
+      // name 为空，表明未给参数配置 @Param 注解
       if (name == null) {
         // @Param was not specified.
         if (useActualParamName) {
+          // 通过反射获取参数名称。此种方式要求 JDK 版本为 1.8+，
+          // 且要求编译时加入 -parameters 参数，否则获取到的参数名
+          // 仍然是 arg1, arg2, ..., argN
           name = getActualParamName(method, paramIndex);
         }
         if (name == null) {
           // use the parameter index as the name ("0", "1", ...)
           // gcode issue #71
+          /*
+          * 使用 map.size() 返回值作为名称，思考一下为什么不这样写：
+          * name = String.valueOf(paramIndex);
+          * 因为如果参数列表中包含 RowBounds 或 ResultHandler，这两个
+          * 参数会被忽略掉，这样将导致名称不连续。
+          *
+          * 比如参数列表 (int p1, int p2, RowBounds rb, int p3)
+          * - 期望得到名称列表为 ["0", "1", "2"]
+          * - 实际得到名称列表为 ["0", "1", "3"]
+          */
           name = String.valueOf(map.size());
         }
       }
+      // 存储 paramIndex 到 name 的映射
       map.put(paramIndex, name);
     }
     names = Collections.unmodifiableSortedMap(map);
@@ -124,17 +150,31 @@ public class ParamNameResolver {
     if (args == null || paramCount == 0) {
       return null;
     } else if (!hasParamAnnotation && paramCount == 1) {
+      /*
+      * 如果方法参数列表无 @Param 注解，且仅有一个非特别参数，则返回该
+      * 参数的值。比如如下方法：
+      * List findList(RowBounds rb, String name)
+      * names 如下：
+      * names = {1 : "0"}
+      * 此种情况下，返回 args[names.firstKey()]，即 args[1] -> name
+      */
       Object value = args[names.firstKey()];
       return wrapToMapIfCollection(value, useActualParamName ? names.get(0) : null);
     } else {
+      // 添加 <参数名, 参数值> 键值对到 param 中
       final Map<String, Object> param = new ParamMap<>();
       int i = 0;
       for (Map.Entry<Integer, String> entry : names.entrySet()) {
         param.put(entry.getValue(), args[entry.getKey()]);
         // add generic param names (param1, param2, ...)
+        // genericParamName = param + index。比如 param1, param2,... paramN
         final String genericParamName = GENERIC_NAME_PREFIX + (i + 1);
         // ensure not to overwrite parameter named with @Param
+        // 检测 names 中是否包含 genericParamName，什么情况下会包含？
+        // 答案如下：
+        // 使用者显式将参数名称配置为 param1，即 @Param("param1")
         if (!names.containsValue(genericParamName)) {
+          // 添加 <param*, value> 到 param 中
           param.put(genericParamName, args[entry.getKey()]);
         }
         i++;

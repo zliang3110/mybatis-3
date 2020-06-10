@@ -50,40 +50,55 @@ public class MapperMethod {
   private final MethodSignature method;
 
   public MapperMethod(Class<?> mapperInterface, Method method, Configuration config) {
+    // 创建 SqlCommand 对象，该对象包含一些和 SQL 相关的信息
     this.command = new SqlCommand(config, mapperInterface, method);
+    // 创建 MethodSignature 对象，由类名可知，该对象包含了被拦截方法的一些信息
     this.method = new MethodSignature(config, mapperInterface, method);
   }
 
   public Object execute(SqlSession sqlSession, Object[] args) {
     Object result;
+    // 根据 SQL 类型执行相应的数据库操作
     switch (command.getType()) {
       case INSERT: {
+        // 对用户传入的参数进行转换，下同
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 执行插入操作，rowCountResult 方法用于处理返回值
         result = rowCountResult(sqlSession.insert(command.getName(), param));
         break;
       }
       case UPDATE: {
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 执行更新操作
         result = rowCountResult(sqlSession.update(command.getName(), param));
         break;
       }
       case DELETE: {
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 执行删除操作
         result = rowCountResult(sqlSession.delete(command.getName(), param));
         break;
       }
       case SELECT:
+        // 根据目标方法的返回类型进行相应的查询操作
         if (method.returnsVoid() && method.hasResultHandler()) {
+          // 如果方法返回值为 void，但参数列表中包含 ResultHandler，表明
+          // 使用者想通过 ResultHandler 的方式获取查询结果，而非通过返回值
+          // 获取结果
           executeWithResultHandler(sqlSession, args);
           result = null;
         } else if (method.returnsMany()) {
+          // 执行查询操作，并返回多个结果
           result = executeForMany(sqlSession, args);
         } else if (method.returnsMap()) {
+          // 执行查询操作，并将结果封装在 Map 中返回
           result = executeForMap(sqlSession, args);
         } else if (method.returnsCursor()) {
+          // 执行查询操作，并返回一个 Cursor 对象
           result = executeForCursor(sqlSession, args);
         } else {
           Object param = method.convertArgsToSqlCommandParam(args);
+          // 执行查询操作，并返回一个结果
           result = sqlSession.selectOne(command.getName(), param);
           if (method.returnsOptional()
               && (result == null || !method.getReturnType().equals(result.getClass()))) {
@@ -92,11 +107,14 @@ public class MapperMethod {
         }
         break;
       case FLUSH:
+        // 执行刷新操作
         result = sqlSession.flushStatements();
         break;
       default:
         throw new BindingException("Unknown execution method for: " + command.getName());
     }
+
+    // 如果方法的返回值为基本类型，而返回值却为 null，此种情况下应抛出异常
     if (result == null && method.getReturnType().isPrimitive() && !method.returnsVoid()) {
       throw new BindingException("Mapper method '" + command.getName()
           + " attempted to return null from a method with a primitive return type (" + method.getReturnType() + ").");
@@ -224,17 +242,24 @@ public class MapperMethod {
     public SqlCommand(Configuration configuration, Class<?> mapperInterface, Method method) {
       final String methodName = method.getName();
       final Class<?> declaringClass = method.getDeclaringClass();
+      // 解析 MappedStatement
       MappedStatement ms = resolveMappedStatement(mapperInterface, methodName, declaringClass,
           configuration);
+      // 检测当前方法是否有对应的 MappedStatement
       if (ms == null) {
+        // 检测当前方法是否有 @Flush 注解
         if (method.getAnnotation(Flush.class) != null) {
+          // 设置 name 和 type 变量
           name = null;
           type = SqlCommandType.FLUSH;
         } else {
+          // 若 ms == null 且方法无 @Flush 注解，此时抛出异常。
+          // 这个异常比较常见，大家应该眼熟吧
           throw new BindingException("Invalid bound statement (not found): "
               + mapperInterface.getName() + "." + methodName);
         }
       } else {
+        // 设置 name 和 type 变量
         name = ms.getId();
         type = ms.getSqlCommandType();
         if (type == SqlCommandType.UNKNOWN) {
@@ -286,7 +311,11 @@ public class MapperMethod {
     private final ParamNameResolver paramNameResolver;
 
     public MethodSignature(Configuration configuration, Class<?> mapperInterface, Method method) {
+
+      // 通过反射解析方法返回类型
       Type resolvedReturnType = TypeParameterResolver.resolveReturnType(method, mapperInterface);
+
+      //返回类型处理
       if (resolvedReturnType instanceof Class<?>) {
         this.returnType = (Class<?>) resolvedReturnType;
       } else if (resolvedReturnType instanceof ParameterizedType) {
@@ -294,14 +323,27 @@ public class MapperMethod {
       } else {
         this.returnType = method.getReturnType();
       }
+
+      // 检测返回值类型是否是 void、集合或数组、Cursor、Map 等
       this.returnsVoid = void.class.equals(this.returnType);
       this.returnsMany = configuration.getObjectFactory().isCollection(this.returnType) || this.returnType.isArray();
       this.returnsCursor = Cursor.class.equals(this.returnType);
       this.returnsOptional = Optional.class.equals(this.returnType);
+      // 解析 @MapKey 注解，获取注解内容
+      /*
+      供返回值为 Map 的方法使用的注解。它使用对象的某个属性作为 key，
+      将对象 List 转化为 Map。属性：value，
+      指定作为 Map 的 key 值的对象属性名。
+       */
       this.mapKey = getMapKey(method);
       this.returnsMap = this.mapKey != null;
+      // 获取 RowBounds 参数在参数列表中的位置，如果参数列表中
+      //包含多个 RowBounds 参数，此方法会抛出异常
+      //RowBounds 实例来限制查询结果
       this.rowBoundsIndex = getUniqueParamIndex(method, RowBounds.class);
+      // 获取 ResultHandler 参数在参数列表中的位置
       this.resultHandlerIndex = getUniqueParamIndex(method, ResultHandler.class);
+      // 解析参数列表
       this.paramNameResolver = new ParamNameResolver(configuration, method);
     }
 

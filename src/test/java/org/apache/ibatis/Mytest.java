@@ -4,14 +4,15 @@ package org.apache.ibatis;
 
 import org.apache.ibatis.datasource.pooled.PooledDataSource;
 import org.apache.ibatis.domain.blog.mappers.BlogMapper;
-import org.apache.ibatis.mapping.Environment;
-import org.apache.ibatis.session.Configuration;
+
+import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
-import org.apache.ibatis.transaction.TransactionFactory;
-import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
+
 import javax.sql.DataSource;
+import java.io.IOException;
+import java.io.InputStream;
 
 
 /**
@@ -28,16 +29,26 @@ public class Mytest {
       "root");
 
 
-    TransactionFactory transactionFactory = new JdbcTransactionFactory();
-    Environment environment = new Environment("development", transactionFactory, dataSource);
-    Configuration configuration = new Configuration(environment);
-    configuration.addMapper(BlogMapper.class);
-    SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(configuration);
+//    TransactionFactory transactionFactory = new JdbcTransactionFactory();
+//    Environment environment = new Environment("development", transactionFactory, dataSource);
+//    Configuration configuration = new Configuration(environment);
+//    configuration.addMapper(BlogMapper.class);
 
-    SqlSession session = sqlSessionFactory.openSession();
+    try {
+      InputStream inputStream = Resources.getResourceAsStream("mybatis-test.xml");
+      SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
 
-    BlogMapper mapper = session.getMapper(BlogMapper.class);
-    System.out.println(mapper.selectAllPosts());;
+      SqlSession session = sqlSessionFactory.openSession();
+
+      BlogMapper mapper = session.getMapper(BlogMapper.class);
+      System.out.println(mapper.selectAllPosts());;
+
+
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+
 
 
   }

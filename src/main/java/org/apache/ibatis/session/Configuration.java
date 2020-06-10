@@ -839,6 +839,7 @@ public class Configuration {
   }
 
   public void addCacheRef(String namespace, String referencedNamespace) {
+
     cacheRefMap.put(namespace, referencedNamespace);
   }
 

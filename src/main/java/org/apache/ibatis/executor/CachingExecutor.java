@@ -84,15 +84,20 @@ public class CachingExecutor implements Executor {
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+    // 获取 BoundSql
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+    // 创建 CacheKey
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
+    // 调用重载方法
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
+    // 从 MappedStatement 中获取缓存
     Cache cache = ms.getCache();
+    // 若映射文件中未配置缓存或参照缓存，此时 cache = null
     if (cache != null) {
       flushCacheIfRequired(ms);
       if (ms.isUseCache() && resultHandler == null) {
@@ -100,12 +105,14 @@ public class CachingExecutor implements Executor {
         @SuppressWarnings("unchecked")
         List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
+          // 若缓存未命中，则调用被装饰类的 query 方法
           list = delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
       }
     }
+    // 调用被装饰类的 query 方法
     return delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 

@@ -89,11 +89,13 @@ public class ResultMap {
       resultMap.constructorResultMappings = new ArrayList<>();
       resultMap.propertyResultMappings = new ArrayList<>();
       final List<String> constructorArgNames = new ArrayList<>();
+
       for (ResultMapping resultMapping : resultMap.resultMappings) {
         resultMap.hasNestedQueries = resultMap.hasNestedQueries || resultMapping.getNestedQueryId() != null;
         resultMap.hasNestedResultMaps = resultMap.hasNestedResultMaps || (resultMapping.getNestedResultMapId() != null && resultMapping.getResultSet() == null);
         final String column = resultMapping.getColumn();
         if (column != null) {
+          // 将 colum 转换成大写，并添加到 mappedColumns 集合中
           resultMap.mappedColumns.add(column.toUpperCase(Locale.ENGLISH));
         } else if (resultMapping.isCompositeResult()) {
           for (ResultMapping compositeResultMapping : resultMapping.getComposites()) {
@@ -103,23 +105,30 @@ public class ResultMap {
             }
           }
         }
+        // 添加属性 property 到 mappedProperties 集合中
         final String property = resultMapping.getProperty();
         if (property != null) {
           resultMap.mappedProperties.add(property);
         }
+        // 检测当前 resultMapping 是否包含 CONSTRUCTOR 标志
         if (resultMapping.getFlags().contains(ResultFlag.CONSTRUCTOR)) {
+          // 添加 resultMapping 到 constructorResultMappings 中
           resultMap.constructorResultMappings.add(resultMapping);
           if (resultMapping.getProperty() != null) {
+            // 添加属性（constructor 节点的 name 属性）到 constructorArgNames 中
             constructorArgNames.add(resultMapping.getProperty());
           }
         } else {
+          // 添加 resultMapping 到 propertyResultMappings 中
           resultMap.propertyResultMappings.add(resultMapping);
         }
         if (resultMapping.getFlags().contains(ResultFlag.ID)) {
+          // 添加 resultMapping 到 idResultMappings 中
           resultMap.idResultMappings.add(resultMapping);
         }
       }
       if (resultMap.idResultMappings.isEmpty()) {
+        // 添加 resultMapping 到 idResultMappings 中
         resultMap.idResultMappings.addAll(resultMap.resultMappings);
       }
       if (!constructorArgNames.isEmpty()) {
@@ -130,6 +139,7 @@ public class ResultMap {
               + resultMap.getType().getName() + "' by arg names " + constructorArgNames
               + ". There might be more info in debug log.");
         }
+        // 对 constructorResultMappings 按照构造方法参数列表的顺序进行排序
         resultMap.constructorResultMappings.sort((o1, o2) -> {
           int paramIdx1 = actualArgNames.indexOf(o1.getProperty());
           int paramIdx2 = actualArgNames.indexOf(o2.getProperty());
@@ -137,6 +147,7 @@ public class ResultMap {
         });
       }
       // lock down collections
+      // 将以下这些集合变为不可修改集合
       resultMap.resultMappings = Collections.unmodifiableList(resultMap.resultMappings);
       resultMap.idResultMappings = Collections.unmodifiableList(resultMap.idResultMappings);
       resultMap.constructorResultMappings = Collections.unmodifiableList(resultMap.constructorResultMappings);
